@@ -1,0 +1,45 @@
+[tool.black]
+line-length = 99
+target-version = ['py39', 'py310']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[tool.poetry]
+name = "shipbob"
+version = "0.1.0"
+description = "Client SDK for ShipBob API"
+authors = ["Raphael Lullis <raphael@communityphone.org>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.28.1"
+pydantic = "^1.10.2"
+
+[tool.poetry.dev-dependencies]
+black = "^22.8.0"
+isort = "^5.10.1"
+mypy = "^0.982"
+flake8 = "^5.0.4"
+types-requests = "^2.28.11"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
