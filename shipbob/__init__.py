@@ -1,2 +1,2 @@
-from .client import ShipBob  # noqa
-from .models import *  # noqa
+from .client import ShipBobClient  # noqa
+from .models. import *  # noqa

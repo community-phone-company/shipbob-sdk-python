@@ -6,6 +6,7 @@ from requests import Session
 
 from .models.orders import Order
 from .models.products import Product
+from .models.shipping import Shipment
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,11 @@ class ShipBob(Session):
         response.raise_for_status()
         return [Order(**order_data) for order_data in response.json()]
 
+    def get_order_shipments(self, order, **params) -> List[Shipment]:
+        response = self.request("GET", f"order/{order.id}/shipment", params=params)
+        response.raise_for_status()
+        return [Shipment(**shipment_data) for shipment_data in response.json()]
+
     def get_products(self, **params) -> List[Product]:
         response = self.request("GET", "product", params=params)
         response.raise_for_status()
@@ -43,6 +49,7 @@ class ShipBob(Session):
     def iterate_products(self, **params) -> Iterator[Product]:
         params.pop("page", None)
         params.pop("limit", None)
+        params["SortOrder"] = "Oldest"
 
         page = 1
         while products := self.get_products(page=page, limit=self.MAX_PAGE_SIZE, **params):
