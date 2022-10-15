@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -139,6 +139,14 @@ class ShippingTerms(BaseModel):
     payment_term: Optional[PaymentTermType]
 
 
+class ShipmentEvent(BaseModel):
+    log_type_id: int
+    log_type_name: str
+    log_type_text: str
+    timestamp: datetime
+    metadata: Optional[Dict]
+
+
 __all__ = [
     "CarrierType",
     "PaymentTermType",
@@ -154,4 +162,5 @@ __all__ = [
     "ParentCarton",
     "Shipment",
     "ShippingTerms",
+    "ShipmentEvent",
 ]
