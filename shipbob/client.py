@@ -6,6 +6,7 @@ from typing import Iterator, List
 
 from pydantic import ValidationError
 from requests import Session
+from requests.exceptions import HTTPError
 
 from .models.orders import Order
 from .models.products import Product
@@ -31,24 +32,37 @@ class ShipBobClient(Session):
             {"Content-Type": "application/json", "Authorization": f"Bearer {self.ACCESS_TOKEN}"}
         )
 
-        self._request_window = []
+        self._request_bucket = []
 
-    def _clear_request_window(self):
+    def _clear_request_bucket(self):
         now = datetime.now()
         one_minute_old = now - timedelta(seconds=60)
-        self._request_window = [rt for rt in self._request_window if rt >= one_minute_old]
+        self._request_bucket = [rt for rt in self._request_bucket if rt >= one_minute_old]
 
-    def request(self, method, url, *args, **kwargs):
-        while len(self._request_window) >= self.MAX_REQUESTS_PER_MINUTE:
-            logger.info("Hitting rate limit. Sleeping for one second")
-            self._clear_request_window()
+    def request(self, method, url, retry_on_rate_limit=True, *args, **kwargs):
+        while len(self._request_bucket) >= self.MAX_REQUESTS_PER_MINUTE:
+            logger.warning("Close to rate limit. Sleeping for one second")
+            self._clear_request_bucket()
             time.sleep(1)
 
-        self._request_window.append(datetime.now())
+        self._request_bucket.append(datetime.now())
 
-        url = "/".join((self.BASE_URL, url.lstrip("/")))
-        response = super().request(method, url, *args, **kwargs)
-        response.raise_for_status()
+        full_url = "/".join((self.BASE_URL, url.lstrip("/")))
+        response = super().request(method, full_url, *args, **kwargs)
+        try:
+            response.raise_for_status()
+        except HTTPError as e:
+            if e.response.status_code == 429 and retry_on_rate_limit:
+                logger.warning("We hit the rate limit.")
+                try:
+                    retry_after: int = int(e.response.headers.get("Retry-After", 5))
+                except ValueError:
+                    retry_after: int = 10
+                logger.warning(f"Waiting {retry_after} seconds to try again...")
+                time.sleep(retry_after)
+                return self.request(method, url, retry_on_rate_limit=False, *args, **kwargs)
+            else:
+                raise e
         return response
 
     def get_orders(self, **params) -> List[Order]:
@@ -56,12 +70,12 @@ class ShipBobClient(Session):
         response.raise_for_status()
         return [Order(**order_data) for order_data in response.json()]
 
-    def get_order_shipments(self, order, **params) -> List[Shipment]:
+    def get_order_shipments(self, order: Order, **params) -> List[Shipment]:
         response = self.request("GET", f"order/{order.id}/shipment", params=params)
         response.raise_for_status()
         return [Shipment(**shipment_data) for shipment_data in response.json()]
 
-    def get_shipment_events(self, shipment, **params) -> List[ShipmentEvent]:
+    def get_shipment_events(self, shipment: Shipment, **params) -> List[ShipmentEvent]:
         try:
             response = self.request("GET", f"shipment/{shipment.id}/timeline", params=params)
             response.raise_for_status()
