@@ -22,4 +22,5 @@ with our team.
 
 
 ## License
-[GPL](https://choosealicense.com/licenses/mit/)
+
+ShipBob Python SDK is available under the MIT license. See the [LICENSE](./LICENSE) file for more info.
