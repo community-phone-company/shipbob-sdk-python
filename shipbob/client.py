@@ -22,6 +22,10 @@ class ShipBobClient(Session):
 
     MAX_PAGE_SIZE: int = 250
     MAX_REQUESTS_PER_MINUTE: int = 150  # As per ShipBob docs, 150 reqs/min sliding window
+    LIMIT_PERIOD_FOR_REQUESTS_MAX_IN_SECONDS = 60
+    AVERAGE_DELAY_FOR_RETRY_IN_SECOND = float(
+        "{:.2f}".format(LIMIT_PERIOD_FOR_REQUESTS_MAX_IN_SECONDS / MAX_REQUESTS_PER_MINUTE)
+    )
 
     def __init__(self):
         super().__init__()
@@ -36,14 +40,14 @@ class ShipBobClient(Session):
 
     def _clear_request_bucket(self):
         now = datetime.now()
-        one_minute_old = now - timedelta(seconds=60)
+        one_minute_old = now - timedelta(seconds=self.MAX_REQUESTS_PER_MINUTE)
         self._request_bucket = [rt for rt in self._request_bucket if rt >= one_minute_old]
 
     def request(self, method, url, retry_on_rate_limit=True, *args, **kwargs):
         while len(self._request_bucket) >= self.MAX_REQUESTS_PER_MINUTE:
             logger.warning("Close to rate limit. Sleeping for one second")
             self._clear_request_bucket()
-            time.sleep(1)
+            time.sleep(self.AVERAGE_DELAY_FOR_RETRY_IN_SECOND)
 
         self._request_bucket.append(datetime.now())
 
