@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import math
 from datetime import datetime, timedelta
 from typing import Iterator, List
 
@@ -21,6 +22,12 @@ class ShipBobClient(Session):
 
     ACCESS_TOKEN = os.getenv("SHIPBOB_ACCESS_TOKEN")
 
+    MAX_RETRIES_AFTER_RATE_LIMIT: int = os.getenv("SHIPBOB_MAX_RETRIES_AFTER_RATE_LIMIT")
+
+    MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS: int = os.getenv(
+        "SHIPBOB_MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS"
+    )
+
     MAX_PAGE_SIZE: int = 250
     MAX_REQUESTS_PER_MINUTE: int = 150  # As per ShipBob docs, 150 reqs/min sliding window
 
@@ -34,6 +41,14 @@ class ShipBobClient(Session):
         )
 
         self._request_bucket = []
+
+        self.RETRIES_AFTER_RATE_LIMIT: int = 0
+
+        if not self.MAX_RETRIES_AFTER_RATE_LIMIT:
+            self.MAX_RETRIES_AFTER_RATE_LIMIT = 1
+
+        if not self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS:
+            self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS = 60
 
     def _clear_request_bucket(self):
         now = datetime.now()
@@ -60,10 +75,24 @@ class ShipBobClient(Session):
                 except ValueError:
                     retry_after: int = 10
                 logger.warning(f"Waiting {retry_after} seconds to try again...")
-                time.sleep(retry_after)
-                return self.request(method, url, retry_on_rate_limit=False, *args, **kwargs)
+
+                if self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS < retry_after * math.pow(
+                    2, self.RETRIES_AFTER_RATE_LIMIT - 1
+                ):
+                    logger.warning(
+                        f"Threshold waiting time of \
+                        {self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS} \
+                            after rate limit exceeded."
+                    )
+                    raise e
+
+                time.sleep(retry_after * math.pow(2, self.RETRIES_AFTER_RATE_LIMIT))
+                self.RETRIES_AFTER_RATE_LIMIT = self.RETRIES_AFTER_RATE_LIMIT + 1
+                if self.MAX_RETRIES_AFTER_RATE_LIMIT >= self.RETRIES_AFTER_RATE_LIMIT:
+                    return self.request(method, url, retry_on_rate_limit=True, *args, **kwargs)
             else:
                 raise e
+        self.RETRIES_AFTER_RATE_LIMIT = 0
         return response
 
     def get_orders(self, **params) -> List[Order]:
