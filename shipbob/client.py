@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from requests import Session
 from requests.exceptions import HTTPError
 
+from .models.inventory import InventoryItem
 from .models.orders import Order
 from .models.products import Product
 from .models.shipping import Shipment, ShipmentEvent
@@ -89,6 +90,11 @@ class ShipBobClient(Session):
         response.raise_for_status()
         return [Product(**product_data) for product_data in response.json()]
 
+    def get_inventory_items(self, **params) -> List[InventoryItem]:
+        response = self.request("GET", "inventory", params=params)
+        response.raise_for_status()
+        return [InventoryItem(**item_data) for item_data in response.json()]
+
     def iterate_products(self, **params) -> Iterator[Product]:
         params.pop("page", None)
         params.pop("limit", None)
@@ -110,4 +116,17 @@ class ShipBobClient(Session):
             logger.debug(f"Getting page {page} of orders")
             for order in orders:
                 yield order
+            page += 1
+
+    def iterate_inventory_items(self, **params) -> Iterator[InventoryItem]:
+        params.pop("page", None)
+        params.pop("limit", None)
+
+        page = 1
+        while inventory_items := self.get_inventory_items(
+            page=page, limit=self.MAX_PAGE_SIZE, **params
+        ):
+            logger.debug(f"Getting page {page} of inventory_items")
+            for inventory_item in inventory_items:
+                yield inventory_item
             page += 1

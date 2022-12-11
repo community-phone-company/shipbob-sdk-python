@@ -6,7 +6,6 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 from .base import Address, BaseMeasurementModel
-from .inventory import InventoryItem
 from .products import BaseProductModel
 
 
@@ -90,9 +89,20 @@ class TrackingDetail(BaseModel):
     scac: Optional[str]
 
 
+class ShippedInventoryItem(BaseModel):
+    id: int
+    name: str
+    quantity: int
+    quantity_committed: int
+    lot: Optional[str]
+    expiration_date: Optional[datetime]
+    serial_numbers: List[str]
+    is_dangerous_goods: bool
+
+
 class ShippedProduct(BaseProductModel):
     name: str
-    inventory_items: List[InventoryItem]
+    inventory_items: List[ShippedInventoryItem]
 
 
 class Carton(CartonBaseModel):
@@ -157,6 +167,7 @@ __all__ = [
     "Recipient",
     "ShipmentStatusDetail",
     "TrackingDetail",
+    "ShippedInventoryItem",
     "ShippedProduct",
     "Carton",
     "ParentCarton",
