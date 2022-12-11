@@ -5,7 +5,15 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from .base import Channel
-from .inventory import FullfillableItemByFulfillmentCenter, InventoryItemSummary
+from .inventory import InventoryItemSummary
+
+
+class FulfillableItemByFulfillmentCenter(BaseModel):
+    id: int
+    name: str
+    fulfillable_quantity: int
+    onhand_quantity: int
+    committed_quantity: int
 
 
 class BaseProductModel(BaseModel):
@@ -34,7 +42,7 @@ class Product(BaseProductModel):
     total_onhand_quantity: int
     total_committed_quantity: int
     fulfillable_inventory_items: List[InventoryItemSummary]
-    fulfillable_quantity_by_fulfillment_center: List[FullfillableItemByFulfillmentCenter]
+    fulfillable_quantity_by_fulfillment_center: List[FulfillableItemByFulfillmentCenter]
 
 
 __all__ = ["Product"]
