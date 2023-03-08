@@ -42,13 +42,11 @@ class ShipBobClient(Session):
 
         self._request_bucket = []
 
-        self.RETRIES_AFTER_RATE_LIMIT: int = 0
+        if not ShipBobClient.MAX_RETRIES_AFTER_RATE_LIMIT:
+            ShipBobClient.MAX_RETRIES_AFTER_RATE_LIMIT = 1
 
-        if not self.MAX_RETRIES_AFTER_RATE_LIMIT:
-            self.MAX_RETRIES_AFTER_RATE_LIMIT = 1
-
-        if not self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS:
-            self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS = 60
+        if not ShipBobClient.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS:
+            ShipBobClient.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS = 60
 
     def _clear_request_bucket(self):
         now = datetime.now()
@@ -76,23 +74,25 @@ class ShipBobClient(Session):
                     retry_after: int = 10
                 logger.warning(f"Waiting {retry_after} seconds to try again...")
 
-                if self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS < retry_after * math.pow(
-                    2, self.RETRIES_AFTER_RATE_LIMIT - 1
+                if (
+                    ShipBobClient.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS
+                    < retry_after * math.pow(2, ShipBobClient.RETRIES_AFTER_RATE_LIMIT - 1)
                 ):
                     logger.warning(
-                        f"Threshold waiting time of \
-                        {self.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS} \
-                            after rate limit exceeded."
+                        f"Threshold waiting time of {ShipBobClient.MAX_SLEEP_TIME_AFTER_RATE_LIMIT_IN_SECONDS} after rate limit exceeded."
                     )
                     raise e
 
-                time.sleep(retry_after * math.pow(2, self.RETRIES_AFTER_RATE_LIMIT))
-                self.RETRIES_AFTER_RATE_LIMIT = self.RETRIES_AFTER_RATE_LIMIT + 1
-                if self.MAX_RETRIES_AFTER_RATE_LIMIT >= self.RETRIES_AFTER_RATE_LIMIT:
-                    return self.request(method, url, retry_on_rate_limit=True, *args, **kwargs)
+                time.sleep(retry_after * math.pow(2, ShipBobClient.RETRIES_AFTER_RATE_LIMIT))
+                ShipBobClient.RETRIES_AFTER_RATE_LIMIT = ShipBobClient.RETRIES_AFTER_RATE_LIMIT + 1
+                if (
+                    ShipBobClient.MAX_RETRIES_AFTER_RATE_LIMIT
+                    >= ShipBobClient.RETRIES_AFTER_RATE_LIMIT
+                ):
+                    return self.request(method, url, retry_on_rate_limit=False, *args, **kwargs)
             else:
                 raise e
-        self.RETRIES_AFTER_RATE_LIMIT = 0
+        ShipBobClient.RETRIES_AFTER_RATE_LIMIT = 0
         return response
 
     def get_orders(self, **params) -> List[Order]:
