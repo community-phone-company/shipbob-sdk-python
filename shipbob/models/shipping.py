@@ -126,7 +126,7 @@ class Shipment(BaseModel):
     created_date: datetime
     last_update_at: Optional[datetime]
     status: ShipmentStatus
-    status_details: Optional[ShipmentStatusDetail]
+    status_details: Optional[List[ShipmentStatusDetail]]
     location: Optional[FulfillmentCenter]
     invoice_amount: Decimal
     insurance_value: Optional[Decimal]
